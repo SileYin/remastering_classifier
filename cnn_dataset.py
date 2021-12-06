@@ -28,7 +28,7 @@ class cnn_dataset(Dataset):
                 start_point = useless_points + i * hop_length
                 tmp = audio[:, start_point:start_point+chunk_size]
                 self.audio_chunks.append(torch.tensor(tmp))
-                self.labels.append(torch.tensor(0))
+                self.labels.append(torch.tensor(0.0))
         for audiofile in tqdm(glob.glob(os.path.join(path, 'remaster/*'))):
             audio, fs = librosa.load(audiofile, sr=self.fs, mono=False)
             if len(audio.shape) != 2:
@@ -39,7 +39,7 @@ class cnn_dataset(Dataset):
                 start_point = useless_points + i * hop_length
                 tmp = audio[:, start_point:start_point + chunk_size]
                 self.audio_chunks.append(torch.tensor(tmp))
-                self.labels.append(torch.tensor(1))
+                self.labels.append(torch.tensor(1.0))
         print(len(self.audio_chunks))
 
 

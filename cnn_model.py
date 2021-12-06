@@ -20,11 +20,16 @@ class CNN_layer(nn.Module):
 
 
 class CNN_classifier(nn.Module):
-    def __init__(self, debug_mode=False, device='cpu'):
+    def __init__(self, debug_mode=False, device='cpu', mono=False):
         super(CNN_classifier, self).__init__()
         self.debug_mode = debug_mode
         self.device = device
-        self.cnn_layers = nn.Sequential(CNN_layer(2, 4, 3), CNN_layer(4, 16, 3), CNN_layer(16, 64, 3),
+        self.mono = mono
+        if self.mono:
+            self.cnn_layers = nn.Sequential(CNN_layer(1, 4, 3), CNN_layer(4, 16, 3), CNN_layer(16, 64, 3),
+                                        CNN_layer(64, 32, 3), CNN_layer(32, 16, 3))
+        else:
+            self.cnn_layers = nn.Sequential(CNN_layer(2, 4, 3), CNN_layer(4, 16, 3), CNN_layer(16, 64, 3),
                                         CNN_layer(64, 32, 3), CNN_layer(32, 16, 3))
         self.cnn_to_fc = nn.Sequential(
             nn.Conv2d(in_channels=16, out_channels=128, kernel_size=(16, 8), stride=1,
@@ -34,11 +39,15 @@ class CNN_classifier(nn.Module):
         self.fc_layers = nn.Sequential(nn.Linear(128, 32), nn.Linear(32, 8), nn.Linear(8, 1))
 
     def forward(self, x):
-        l = torch.abs(torch.stft(x[:, 0, :], n_fft=1024, hop_length=512, window=torch.hann_window(1024),
-                                             win_length=1024, normalized=False, onesided=True, return_complex=True))
-        r = torch.abs(torch.stft(x[:, 1, :], n_fft=1024, hop_length=512, window=torch.hann_window(1024),
-                                             win_length=1024, normalized=False, onesided=True, return_complex=True))
-        z = torch.cat((l.unsqueeze(1), r.unsqueeze(1)), 1)
+        if self.mono:
+            z = torch.abs(torch.stft((x[:, 0, :] + x[:, 1, :])/2, n_fft=1024, hop_length=512, window=torch.hann_window(1024).to(self.device),
+                                                win_length=1024, normalized=False, onesided=True, return_complex=True)).unsqueeze(1)
+        else:
+            l = torch.abs(torch.stft(x[:, 0, :], n_fft=1024, hop_length=512, window=torch.hann_window(1024).to(self.device),
+                                                win_length=1024, normalized=False, onesided=True, return_complex=True))
+            r = torch.abs(torch.stft(x[:, 1, :], n_fft=1024, hop_length=512, window=torch.hann_window(1024).to(self.device),
+                                                win_length=1024, normalized=False, onesided=True, return_complex=True))
+            z = torch.cat((l.unsqueeze(1), r.unsqueeze(1)), 1)
         if self.debug_mode:
             print(z.size())
         for i in range(5):
@@ -59,7 +68,7 @@ class CNN_classifier(nn.Module):
 
 
 if __name__ == '__main__':
-    model = CNN_classifier(debug_mode=True)
+    model = CNN_classifier(debug_mode=True, mono=True)
     input = torch.randn(10, 2, 131072)
     out = model.forward(input)
     print(out.size())

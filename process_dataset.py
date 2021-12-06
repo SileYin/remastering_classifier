@@ -7,11 +7,32 @@ from tqdm import tqdm
 import numpy as np
 from joblib import Parallel, delayed
 import pickle
+import math
+
+
+def block_audio(x, blockSize, hopSize):
+    # allocate memory
+    numBlocks = math.ceil(x.size / hopSize)
+    xb = np.zeros([numBlocks, blockSize])
+    x = np.concatenate((x, np.zeros(blockSize)),axis=0)
+    for n in range(0, numBlocks):
+        i_start = n * hopSize
+        i_stop = np.min([x.size - 1, i_start + blockSize - 1])
+        xb[n][np.arange(0,blockSize)] = x[np.arange(i_start, i_stop + 1)]
+    return xb
 
 
 def sub_power_ratio(y, n_fft=2048, hop_size=512):
     spec = librosa.stft(y, n_fft=n_fft, hop_length=hop_size)
     return (np.sum(spec[:6, :]*spec.conj()[:6, :], axis=0)/(np.sum(spec[:, :]*spec.conj()[:, :], axis=0)+1e-8)).real
+
+
+def stereo_width(y, blockSize=2048, hopSize=512):
+    mid = 0.5*(y[0, :]+y[1, :])
+    side = 0.5*(y[0, :] - y[1, :])
+    mb = block_audio(mid, blockSize, hopSize)
+    sb = block_audio(side, blockSize, hopSize)
+    return np.mean(sb**2, axis=1)/np.mean(mb**2, axis=1)
 
 
 def high_power_ratio(y, n_fft=2048, hop_size=512):
@@ -40,12 +61,15 @@ def get_feature(path, avg_over=100):
 
 
 def get_mfcc_mean(file_path):
-    y, fs = librosa.load(file_path, sr=None)
-    mfcc = librosa.feature.mfcc(y, sr=fs, n_mfcc=13)
-    spr = sub_power_ratio(y)
+    y, fs = librosa.load(file_path, sr=None, mono=False)
+    if y.shape[0]!=2:
+        y = np.vstack((y, y))
+    mfcc = librosa.feature.mfcc(0.5*(y[0, :]+y[1, :]), sr=fs, n_mfcc=13)
+    spr = sub_power_ratio(0.5*(y[0, :]+y[1, :]))
+    sw = stereo_width(y)
     # zcr = librosa.feature.zero_crossing_rate(y)
     # bw = librosa.feature.spectral_bandwidth(y, sr=fs)
-    return np.vstack((mfcc, spr))
+    return np.vstack((mfcc, spr, sw))
 
 
 if __name__ == '__main__':
