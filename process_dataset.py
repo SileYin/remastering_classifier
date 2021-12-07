@@ -12,9 +12,9 @@ import math
 
 def block_audio(x, blockSize, hopSize):
     # allocate memory
-    numBlocks = math.ceil(x.size / hopSize)
+    numBlocks = math.ceil(x.size / hopSize) + 1
     xb = np.zeros([numBlocks, blockSize])
-    x = np.concatenate((x, np.zeros(blockSize)),axis=0)
+    x = np.concatenate((np.zeros(hopSize), x, np.zeros(blockSize)),axis=0)
     for n in range(0, numBlocks):
         i_start = n * hopSize
         i_stop = np.min([x.size - 1, i_start + blockSize - 1])
@@ -32,7 +32,7 @@ def stereo_width(y, blockSize=2048, hopSize=512):
     side = 0.5*(y[0, :] - y[1, :])
     mb = block_audio(mid, blockSize, hopSize)
     sb = block_audio(side, blockSize, hopSize)
-    return np.mean(sb**2, axis=1)/np.mean(mb**2, axis=1)
+    return np.mean(sb**2, axis=1)/(np.mean(mb**2, axis=1)+1e-8)
 
 
 def high_power_ratio(y, n_fft=2048, hop_size=512):
@@ -67,13 +67,14 @@ def get_mfcc_mean(file_path):
     mfcc = librosa.feature.mfcc(0.5*(y[0, :]+y[1, :]), sr=fs, n_mfcc=13)
     spr = sub_power_ratio(0.5*(y[0, :]+y[1, :]))
     sw = stereo_width(y)
+    mel = librosa.feature.melspectrogram(0.5*(y[0, :]+y[1, :]), sr=fs)
     # zcr = librosa.feature.zero_crossing_rate(y)
     # bw = librosa.feature.spectral_bandwidth(y, sr=fs)
-    return np.vstack((mfcc, spr, sw))
+    return np.vstack((mfcc, spr, sw, mel))
 
 
 if __name__ == '__main__':
-    average_over = 1000
+    average_over = 256
     V_train, V_test = get_feature('vinyl', average_over)
     R_train, R_test = get_feature('remaster', average_over)
     X_train = np.concatenate((V_train, R_train), axis=0)

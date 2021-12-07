@@ -20,11 +20,12 @@ class CNN_layer(nn.Module):
 
 
 class CNN_classifier(nn.Module):
-    def __init__(self, debug_mode=False, device='cpu', mono=False):
+    def __init__(self, debug_mode=False, device='cpu', mono=False, mask=False):
         super(CNN_classifier, self).__init__()
         self.debug_mode = debug_mode
         self.device = device
         self.mono = mono
+        self.mask = mask
         if self.mono:
             self.cnn_layers = nn.Sequential(CNN_layer(1, 4, 3), CNN_layer(4, 16, 3), CNN_layer(16, 64, 3),
                                         CNN_layer(64, 32, 3), CNN_layer(32, 16, 3))
@@ -48,7 +49,10 @@ class CNN_classifier(nn.Module):
             r = torch.abs(torch.stft(x[:, 1, :], n_fft=1024, hop_length=512, window=torch.hann_window(1024).to(self.device),
                                                 win_length=1024, normalized=False, onesided=True, return_complex=True))
             z = torch.cat((l.unsqueeze(1), r.unsqueeze(1)), 1)
+        if self.mask:
+            z = torch.zeros(z.size()).to(self.device)
         if self.debug_mode:
+            print(z[1,0,20:30,20:30])
             print(z.size())
         for i in range(5):
             z = self.cnn_layers[i](z)
@@ -68,7 +72,7 @@ class CNN_classifier(nn.Module):
 
 
 if __name__ == '__main__':
-    model = CNN_classifier(debug_mode=True, mono=True)
+    model = CNN_classifier(debug_mode=True, mono=True, mask=True)
     input = torch.randn(10, 2, 131072)
     out = model.forward(input)
     print(out.size())
