@@ -13,8 +13,8 @@ pytorch for CNN (cnn_\*.py and classify.py)
 ## Usage
 Training:
 
-  python cnn_train.py
+  `python cnn_train.py`
   
 Using trained model for classification:
 
-  python classify.py <path_to_model> <path_to_audio_file>
+  `python classify.py <path_to_model> <path_to_audio_file>`
